@@ -1,0 +1,17 @@
+.
+├── apps
+│   ├── backend
+│   │   ├── database.py
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   ├── requirements.txt
+│   │   └── settings.py
+│   ├── frontend
+│   │   └── images
+│   └── package.json
+├── Makefile
+├── pnpm-workspace.yaml
+├── README.md
+└── tree-structure.txt
+
+4 directories, 10 files
