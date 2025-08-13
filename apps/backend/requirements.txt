@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+SQLModel
+SQLAlchemy
+aiosqlite
+pydantic-settings
+python-dotenv
+Pillow
+requests
+openai
