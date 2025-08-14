@@ -1,10 +1,8 @@
 services:
-  # --- Backend (FastAPI) ---
   - type: web
     name: hyper-backend
     env: python
     plan: free
-    region: oregon
     rootDir: .
     buildCommand: |
       pip install -r apps/backend/requirements.txt
@@ -15,28 +13,16 @@ services:
       - key: PYTHON_VERSION
         value: 3.10.13
       - key: DB_URL
-        value: sqlite:////data/gallery.db
+        value: sqlite:///./gallery.db        # stays in container, not persistent
       - key: UPLOAD_DIR
-        value: /data/uploads
-      # TEMP for first boot; update after frontend is live with its final URL
+        value: /tmp/uploads                   # ephemeral
       - key: CORS_ORIGINS
-        value: '["http://localhost:3000","http://localhost:3001"]'
-      # If you later enable WhatsApp Cloud API, add these:
-      # - key: WA_PHONE_NUMBER_ID ; value: ""
-      # - key: WA_WABA_ID         ; value: ""
-      # - key: WA_TOKEN           ; value: ""
-      # - key: WA_VERIFY_TOKEN    ; value: dev-verify-token
-    disk:
-      name: uploads
-      mountPath: /data
-      sizeGB: 1
+        value: '["https://YOUR_FRONTEND.onrender.com","http://localhost:3001"]'
 
-  # --- Frontend (Next.js on Node) ---
   - type: web
     name: hyper-frontend
     env: node
     plan: free
-    region: oregon
     rootDir: .
     buildCommand: |
       corepack enable
@@ -47,9 +33,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20.19.0
-      # Point the frontend at the backend URL (Render injects the service URL)
+      # Set manually AFTER backend is live:
       - key: NEXT_PUBLIC_API_BASE
-        fromService:
-          type: web
-          name: hyper-backend
-          property: url
+        value: https://YOUR_BACKEND.onrender.com
