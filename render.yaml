@@ -1,0 +1,55 @@
+services:
+  # --- Backend (FastAPI) ---
+  - type: web
+    name: hyper-backend
+    env: python
+    plan: free
+    region: oregon
+    rootDir: .
+    buildCommand: |
+      pip install -r apps/backend/requirements.txt
+    startCommand: |
+      uvicorn apps.backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.13
+      - key: DB_URL
+        value: sqlite:////data/gallery.db
+      - key: UPLOAD_DIR
+        value: /data/uploads
+      # TEMP for first boot; update after frontend is live with its final URL
+      - key: CORS_ORIGINS
+        value: '["http://localhost:3000","http://localhost:3001"]'
+      # If you later enable WhatsApp Cloud API, add these:
+      # - key: WA_PHONE_NUMBER_ID ; value: ""
+      # - key: WA_WABA_ID         ; value: ""
+      # - key: WA_TOKEN           ; value: ""
+      # - key: WA_VERIFY_TOKEN    ; value: dev-verify-token
+    disk:
+      name: uploads
+      mountPath: /data
+      sizeGB: 1
+
+  # --- Frontend (Next.js on Node) ---
+  - type: web
+    name: hyper-frontend
+    env: node
+    plan: free
+    region: oregon
+    rootDir: .
+    buildCommand: |
+      corepack enable
+      pnpm install
+      pnpm -C apps/frontend build
+    startCommand: |
+      cd apps/frontend && next start -p $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.0
+      # Point the frontend at the backend URL (Render injects the service URL)
+      - key: NEXT_PUBLIC_API_BASE
+        fromService:
+          type: web
+          name: hyper-backend
+          property: url
