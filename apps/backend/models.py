@@ -1,10 +1,11 @@
-from sqlmodel import SQLModel, Field
-from typing import Optional
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.sql import func
+from .database import Base
 
-class Image(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    filename: str
-    title: str = ""
-    ord: int = 0  # display order
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+class Image(Base):
+    __tablename__ = "images"
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String, unique=True, index=True, nullable=False)
+    title = Column(String, nullable=True)
+    ord = Column(Integer, index=True, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

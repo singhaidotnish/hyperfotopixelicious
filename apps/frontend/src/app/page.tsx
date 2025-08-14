@@ -1,103 +1,112 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+const API = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+type Item = { id:number; title:string|null; url:string };
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [items, setItems] = useState<Item[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  async function refresh() {
+    const r = await fetch(`${API}/images`);
+    setItems(await r.json());
+  }
+  useEffect(() => { refresh(); }, []);
+
+  async function upload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const fd = new FormData();
+    Array.from(files).forEach(f => fd.append("files", f));
+    const r = await fetch(`${API}/upload`, { method: "POST", body: fd });
+    if (r.ok) await refresh();
+  }
+
+  // drag-and-drop upload onto the + tile
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    upload(e.dataTransfer.files);
+  }
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+  }
+
+  async function remove(id:number) {
+    await fetch(`${API}/images/${id}`, { method: "DELETE" });
+    await refresh();
+  }
+
+  async function annotate(id:number) {
+    const text = prompt("Text to write on image:");
+    if (!text) return;
+    const fd = new FormData();
+    fd.append("image_id", String(id));
+    fd.append("text", text);
+    const r = await fetch(`${API}/annotate`, { method: "POST", body: fd });
+    if (r.ok) await refresh();
+  }
+
+  return (
+    <main className="min-h-screen">
+      {/* NavBar */}
+      <nav className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+          <h1 className="text-lg font-semibold">Hyperfotopixelicious</h1>
+
+          <div className="flex items-center gap-3">
+            {/* Add (navbar button mirrors the + tile) */}
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2"
+              title="Pick multiple WhatsApp images to import"
+            >
+              Import from WhatsApp
+            </button>
+            <button onClick={refresh} className="rounded-xl border px-3 py-2">
+              Refresh
+            </button>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      </nav>
+
+      {/* Hidden picker (also used by + tile) */}
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept="image/*"
+        onChange={(e)=> upload(e.target.files)}
+        className="hidden"
+      />
+
+      {/* Grid = images + one permanent + tile */}
+      <section className="mx-auto max-w-6xl px-4 py-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {/* existing images */}
+        {items.map(it => (
+          <article key={it.id} className="group border rounded-2xl overflow-hidden">
+            <img src={it.url} alt={it.title ?? "image"} className="w-full aspect-square object-cover" />
+            <div className="p-2 flex gap-3">
+              <button onClick={()=>annotate(it.id)} className="text-sm underline">Add text</button>
+              <button onClick={()=>remove(it.id)} className="text-sm text-red-600 underline">Delete</button>
+            </div>
+          </article>
+        ))}
+
+        {/* + tile (drop or click to add) */}
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onClick={() => fileRef.current?.click()}
+          title="Drop images here or click to pick"
+          className="cursor-pointer rounded-2xl border-2 border-dashed flex items-center justify-center aspect-square bg-white hover:bg-gray-50"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          <div className="w-20 h-20 rounded-3xl border relative">
+            <span className="absolute inset-0 before:absolute before:inset-x-1/2 before:-translate-x-1/2 before:top-3 before:bottom-3 before:w-[3px] before:bg-black
+                               after:absolute after:inset-y-1/2 after:-translate-y-1/2 after:left-3 after:right-3 after:h-[3px] after:bg-black"></span>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

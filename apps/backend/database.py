@@ -1,13 +1,22 @@
-from sqlmodel import SQLModel, create_engine, Session
-from contextlib import contextmanager
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+from .settings import settings
 
-DATABASE_URL = "sqlite:///gallery.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# SQLAlchemy engine
+# If using SQLite, keep check_same_thread=False
+connect_args = {"check_same_thread": False} if settings.DB_URL.startswith("sqlite") else {}
+engine = create_engine(settings.DB_URL, connect_args=connect_args)
 
-def init_db():
-    SQLModel.metadata.create_all(engine)
+# Session factory
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
-@contextmanager
+# Declarative base (THIS is the Base you were missing)
+Base = declarative_base()
+
+# Dependency for FastAPI routes
 def get_session():
-    with Session(engine) as session:
-        yield session
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
